@@ -1,0 +1,60 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+
+    - name: Start LiteLLM
+      run: |
+        docker compose up -d litellm
+        # Wait for service to be healthy
+        timeout 30s bash -c 'until curl --silent --fail http://localhost:4000/health > /dev/null; do sleep 1; done' || true
+        # LiteLLM might not have /health endpoint or it might differ.
+        # Just sleep is safer for now.
+        sleep 10
+
+    - name: Lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+
+    - name: Test
+      run: go test ./... -coverprofile=coverage.out
+      env:
+        LITELLM_API_URL: http://localhost:4000
+        LITELLM_MASTER_KEY: sk-master-key
+
+    - name: Check Coverage
+      run: |
+        go tool cover -func=coverage.out
+        COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+        echo "Coverage: $COVERAGE%"
+        # Use awk to compare floats since bc might not be installed
+        if [ $(echo "$COVERAGE" | awk '{print ($1 < 70.0)}') -eq 1 ]; then
+          echo "Coverage is below 75%"
+          exit 1
+        fi
+
+  build:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build Docker Image
+      run: docker build -t llmreq .

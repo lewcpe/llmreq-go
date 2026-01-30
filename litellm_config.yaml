@@ -1,0 +1,10 @@
+model_list:
+  - model_name: fake-gpt-test
+    litellm_params:
+      model: gpt-3.5-turbo
+      api_key: "sk-1234"
+      mock_response: "Hello from mock provider"
+      input_cost_per_token: 0.000001
+      output_cost_per_token: 0.000002
+general_settings:
+  master_key: "sk-master-key"
