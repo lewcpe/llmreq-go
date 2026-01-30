@@ -36,11 +36,11 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 	}
 
 	responseKeys := []map[string]interface{}{}
-    processedDBIDs := make(map[uint]struct{})
+	processedDBIDs := make(map[uint]struct{})
 
 	for _, k := range keys {
 		// Strict user check
-		if k.User != "" && k.User != userID {
+		if k.User != userID {
 			continue
 		}
 
@@ -49,7 +49,7 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 		dbKey, exists := dbKeyMap[id]
 		if exists {
 			// Found in DB. Ensure active.
-            processedDBIDs[dbKey.ID] = struct{}{}
+			processedDBIDs[dbKey.ID] = struct{}{}
 
 			if dbKey.Status != "active" {
 				dbKey.Status = "active"
@@ -78,7 +78,7 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 			}
 
 			if matchedByAlias != nil {
-                processedDBIDs[matchedByAlias.ID] = struct{}{}
+				processedDBIDs[matchedByAlias.ID] = struct{}{}
 
 				// Update ID
 				matchedByAlias.LiteLLMKeyID = id
@@ -121,8 +121,8 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 
 	// Revoke keys not in LiteLLM list (and not matched/processed)
 	for _, dbKey := range dbKeys {
-        if _, ok := processedDBIDs[dbKey.ID]; !ok {
-            if dbKey.Status == "active" {
+		if _, ok := processedDBIDs[dbKey.ID]; !ok {
+			if dbKey.Status == "active" {
 				dbKey.Status = "revoked"
 				now := time.Now()
 				dbKey.RevokedAt = &now
@@ -160,7 +160,15 @@ func (h *Handler) CreateKey(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "Failed to fetch key count"})
 	}
-	if len(activeKeys) >= config.AppConfig.MaxActiveKeys {
+
+	userActiveKeyCount := 0
+	for _, k := range activeKeys {
+		if k.User == userID {
+			userActiveKeyCount++
+		}
+	}
+
+	if userActiveKeyCount >= config.AppConfig.MaxActiveKeys {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Max active keys limit reached"})
 	}
 
@@ -244,13 +252,13 @@ func (h *Handler) CreateKey(c echo.Context) error {
 
 func (h *Handler) DeleteKey(c echo.Context) error {
 	keyID := c.Param("key_id")
-    userID := c.Get("user_id").(string)
+	userID := c.Get("user_id").(string)
 
-    // Verify ownership
-    var dbKey models.KeyHistory
-    if err := h.DB.Where("user_id = ? AND litellm_key_id = ?", userID, keyID).First(&dbKey).Error; err != nil {
-         return c.JSON(http.StatusNotFound, map[string]string{"error": "Key not found"})
-    }
+	// Verify ownership
+	var dbKey models.KeyHistory
+	if err := h.DB.Where("user_id = ? AND litellm_key_id = ?", userID, keyID).First(&dbKey).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Key not found"})
+	}
 
 	if err := h.LiteLLMService.DeleteKey(keyID); err != nil {
 		log.Printf("Failed to delete key in LiteLLM: %v", err)

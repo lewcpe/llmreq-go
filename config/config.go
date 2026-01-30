@@ -10,15 +10,15 @@ import (
 )
 
 type Config struct {
-	Prefix                  string
-	LiteLLMAPIURL           string
-	LiteLLMMasterKey        string
-	DatabaseURL             string
-	DefaultBudget           float64
-	LongTermKeyLifetime     time.Duration
-	LongTermKeyLimit        int
-	LongTermKeyBudget       float64
-	MaxActiveKeys           int
+	Prefix              string
+	LiteLLMAPIURL       string
+	LiteLLMMasterKey    string
+	DatabaseURL         string
+	DefaultBudget       float64
+	LongTermKeyLifetime time.Duration
+	LongTermKeyLimit    int
+	LongTermKeyBudget   float64
+	MaxActiveKeys       int
 }
 
 var AppConfig *Config
@@ -27,15 +27,15 @@ func LoadConfig() {
 	_ = godotenv.Load() // Load from .env if it exists, ignore error if not
 
 	AppConfig = &Config{
-		Prefix:                  getEnv("LLMREQ_PREFIX", "/api"),
-		LiteLLMAPIURL:           getEnv("LITELLM_API_URL", "http://litellm:4000"),
-		LiteLLMMasterKey:        getEnv("LITELLM_MASTER_KEY", ""),
-		DatabaseURL:             getEnv("LLMREQ_DATABASE_URL", "file:app.db?cache=shared&mode=rwc"),
-		DefaultBudget:           getEnvFloat("LLMREQ_DEFAULT_BUDGET", 1.0),
-		LongTermKeyLifetime:     getEnvDuration("LLMREQ_LONGTERM_KEY_LIFETIME", 9600*time.Hour),
-		LongTermKeyLimit:        getEnvInt("LLMREQ_LONGTERM_KEY_LIMIT", 1),
-		LongTermKeyBudget:       getEnvFloat("LLMREQ_LONGTERM_KEY_BUDGET", 20.0),
-		MaxActiveKeys:           getEnvInt("LLMREQ_MAX_ACTIVE_KEY", 10),
+		Prefix:              getEnv("LLMREQ_PREFIX", "/api"),
+		LiteLLMAPIURL:       getEnv("LITELLM_API_URL", "http://litellm:4000"),
+		LiteLLMMasterKey:    getEnv("LITELLM_MASTER_KEY", ""),
+		DatabaseURL:         getEnv("LLMREQ_DATABASE_URL", "file:app.db?cache=shared&mode=rwc"),
+		DefaultBudget:       getEnvFloat("LLMREQ_DEFAULT_BUDGET", 1.0),
+		LongTermKeyLifetime: getEnvDuration("LLMREQ_LONGTERM_KEY_LIFETIME", 9600*time.Hour),
+		LongTermKeyLimit:    getEnvInt("LLMREQ_LONGTERM_KEY_LIMIT", 1),
+		LongTermKeyBudget:   getEnvFloat("LLMREQ_LONGTERM_KEY_BUDGET", 20.0),
+		MaxActiveKeys:       getEnvInt("LLMREQ_MAX_ACTIVE_KEY", 10),
 	}
 
 	if AppConfig.LiteLLMMasterKey == "" {

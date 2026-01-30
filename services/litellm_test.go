@@ -14,7 +14,7 @@ func TestLiteLLMService_GetUserInfo(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/user/info/test@example.com" {
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(LiteLLMUser{
+			_ = json.NewEncoder(w).Encode(LiteLLMUser{
 				UserID:    "test@example.com",
 				UserEmail: "test@example.com",
 				Spend:     10.0,
@@ -78,7 +78,7 @@ func TestLiteLLMService_ListKeys(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/key/list" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"keys": [{"key": "sk-123", "spend": 0.5}]}`))
+			_, _ = w.Write([]byte(`{"keys": [{"key": "sk-123", "spend": 0.5}]}`))
 			return
 		}
 		w.WriteHeader(http.StatusBadRequest)
@@ -104,7 +104,7 @@ func TestLiteLLMService_GenerateKey(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/key/generate" && r.Method == "POST" {
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(GenerateKeyResponse{
+			_ = json.NewEncoder(w).Encode(GenerateKeyResponse{
 				Key: "sk-generated",
 			})
 			return

@@ -40,8 +40,8 @@ func (m *AuthMiddleware) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 		if err != nil {
 			// If error, it might be that LiteLLM is down or returned error.
 			// But if it's 404 (user not found), GetUserInfo returns nil, nil.
-            // If it returns error, it's a real error.
-            log.Printf("Error checking user info: %v", err)
+			// If it returns error, it's a real error.
+			log.Printf("Error checking user info: %v", err)
 			return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "LiteLLM service unavailable"})
 		}
 
@@ -49,7 +49,7 @@ func (m *AuthMiddleware) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 			// User does not exist, create it
 			err := m.LiteLLMService.CreateUser(userID, userID, config.AppConfig.DefaultBudget)
 			if err != nil {
-                log.Printf("Error creating user: %v", err)
+				log.Printf("Error creating user: %v", err)
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to provision user"})
 			}
 		}

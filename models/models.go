@@ -5,13 +5,13 @@ import (
 )
 
 type KeyHistory struct {
-	ID          uint           `gorm:"primaryKey"`
-	UserID      string         `gorm:"index"`
-	LiteLLMKeyID string        `gorm:"column:litellm_key_id"`
-	KeyName     string
-	KeyMask     string
-	KeyType     string
-	CreatedAt   time.Time
-	RevokedAt   *time.Time
-	Status      string
+	ID           uint   `gorm:"primaryKey"`
+	UserID       string `gorm:"index"`
+	LiteLLMKeyID string `gorm:"column:litellm_key_id"`
+	KeyName      string
+	KeyMask      string
+	KeyType      string
+	CreatedAt    time.Time
+	RevokedAt    *time.Time
+	Status       string
 }

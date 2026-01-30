@@ -17,7 +17,7 @@ func TestAuthMiddleware(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/user/info/test@example.com") {
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(services.LiteLLMUser{UserID: "test@example.com"})
+			_ = json.NewEncoder(w).Encode(services.LiteLLMUser{UserID: "test@example.com"})
 			return
 		}
 		if strings.Contains(r.URL.Path, "/user/info/new@example.com") {
@@ -28,7 +28,7 @@ func TestAuthMiddleware(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-        w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 	}))
 	defer server.Close()
 
@@ -51,9 +51,9 @@ func TestAuthMiddleware(t *testing.T) {
 	})(c)
 
 	if err == nil {
-        if rec.Code != http.StatusUnauthorized {
-             t.Errorf("Expected 401, got %d", rec.Code)
-        }
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("Expected 401, got %d", rec.Code)
+		}
 	}
 
 	// 2. Existing User
@@ -68,12 +68,12 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 		return c.String(http.StatusOK, "ok")
 	})(c)
-    if err != nil {
-        t.Fatal(err)
-    }
-    if rec.Code != http.StatusOK {
-        t.Errorf("Expected 200, got %d", rec.Code)
-    }
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200, got %d", rec.Code)
+	}
 
 	// 3. New User (JIT)
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
@@ -87,10 +87,10 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 		return c.String(http.StatusOK, "ok")
 	})(c)
-     if err != nil {
-        t.Fatal(err)
-    }
-     if rec.Code != http.StatusOK {
-        t.Errorf("Expected 200, got %d", rec.Code)
-    }
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200, got %d", rec.Code)
+	}
 }

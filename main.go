@@ -29,7 +29,14 @@ func main() {
 	e := echo.New()
 
 	// Middleware
-	e.Use(echoMiddleware.Logger())
+	e.Use(echoMiddleware.RequestLoggerWithConfig(echoMiddleware.RequestLoggerConfig{
+		LogStatus: true,
+		LogURI:    true,
+		LogValuesFunc: func(c echo.Context, v echoMiddleware.RequestLoggerValues) error {
+			log.Printf("REQUEST: uri=%s status=%v", v.URI, v.Status)
+			return nil
+		},
+	}))
 	e.Use(echoMiddleware.Recover())
 
 	// Custom Auth Middleware
