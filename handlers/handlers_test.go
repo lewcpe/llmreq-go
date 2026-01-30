@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/example/llmreq/config"
 	"github.com/example/llmreq/models"
@@ -243,6 +244,91 @@ func TestDeleteKey(t *testing.T) {
 	db.Where("litellm_key_id = ?", "sk-delete").First(&key)
 	if key.Status != "revoked" {
 		t.Errorf("Expected status revoked, got %s", key.Status)
+	}
+}
+
+func TestExpiredKey(t *testing.T) {
+	// Mock LiteLLM returning an expired key
+	expiredTime := time.Now().Add(-24 * time.Hour).Format(time.RFC3339)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/key/list" {
+			w.WriteHeader(http.StatusOK)
+			// Return one expired key
+			resp := map[string]interface{}{
+				"keys": []map[string]interface{}{
+					{
+						"key":       "sk-expired",
+						"key_alias": "expired-key",
+						"user_id":   "test@example.com",
+						"expires":   expiredTime,
+					},
+				},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		if r.URL.Path == "/key/generate" {
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(services.GenerateKeyResponse{
+				Key: "sk-new",
+			})
+			return
+		}
+	}))
+	defer server.Close()
+
+	svc := services.NewLiteLLMService()
+	svc.BaseURL = server.URL
+	db := setupTestDB(t)
+	h := NewHandler(svc, db)
+
+	// 1. GetActiveKeys should mark it as expired in DB
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/keys/active", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user_id", "test@example.com")
+
+	if err := h.GetActiveKeys(c); err != nil {
+		t.Fatal(err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200, got %d", rec.Code)
+	}
+
+	// Verify DB status
+	var key models.KeyHistory
+	if err := db.Where("litellm_key_id = ?", "sk-expired").First(&key).Error; err != nil {
+		t.Fatal("Expected key to be synced to DB")
+	}
+	if key.Status != "expired" {
+		t.Errorf("Expected status expired, got %s", key.Status)
+	}
+	if key.ExpiresAt == nil {
+		t.Errorf("Expected ExpiresAt to be set")
+	}
+
+	// 2. CreateKey should NOT count expired key towards limit
+	config.AppConfig = &config.Config{
+		MaxActiveKeys:       1,
+		StandardKeyLifetime: 60 * 24 * time.Hour,
+	} // Limit is 1
+	// We have 1 expired key in LiteLLM (mocked above). Creating another one should succeed because expired one doesn't count.
+
+	body := `{"name": "new-key", "type": "standard"}`
+	req2 := httptest.NewRequest(http.MethodPost, "/api/keys", strings.NewReader(body))
+	req2.Header.Set("Content-Type", "application/json")
+	rec2 := httptest.NewRecorder()
+	c2 := e.NewContext(req2, rec2)
+	c2.Set("user_id", "test@example.com")
+
+	if err := h.CreateKey(c2); err != nil {
+		t.Fatal(err)
+	}
+
+	if rec2.Code != http.StatusOK {
+		t.Errorf("Expected 200, got %d, body: %s", rec2.Code, rec2.Body.String())
 	}
 }
 

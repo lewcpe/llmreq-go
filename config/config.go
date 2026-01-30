@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -16,6 +17,7 @@ type Config struct {
 	DatabaseURL         string
 	DefaultBudget       float64
 	LongTermKeyLifetime time.Duration
+	StandardKeyLifetime time.Duration
 	LongTermKeyLimit    int
 	LongTermKeyBudget   float64
 	MaxActiveKeys       int
@@ -33,6 +35,7 @@ func LoadConfig() {
 		DatabaseURL:         getEnv("LLMREQ_DATABASE_URL", "file:app.db?cache=shared&mode=rwc"),
 		DefaultBudget:       getEnvFloat("LLMREQ_DEFAULT_BUDGET", 1.0),
 		LongTermKeyLifetime: getEnvDuration("LLMREQ_LONGTERM_KEY_LIFETIME", 9600*time.Hour),
+		StandardKeyLifetime: getEnvDurationExtended("LLMREQ_DEFAULT_KEY_EXPIRE", 60*24*time.Hour),
 		LongTermKeyLimit:    getEnvInt("LLMREQ_LONGTERM_KEY_LIMIT", 1),
 		LongTermKeyBudget:   getEnvFloat("LLMREQ_LONGTERM_KEY_BUDGET", 20.0),
 		MaxActiveKeys:       getEnvInt("LLMREQ_MAX_ACTIVE_KEY", 10),
@@ -81,4 +84,27 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 		return value
 	}
 	return fallback
+}
+
+func getEnvDurationExtended(key string, fallback time.Duration) time.Duration {
+	strValue := getEnv(key, "")
+	if strValue == "" {
+		return fallback
+	}
+	if value, err := parseDurationExtended(strValue); err == nil {
+		return value
+	}
+	return fallback
+}
+
+func parseDurationExtended(s string) (time.Duration, error) {
+	if strings.HasSuffix(s, "d") {
+		daysStr := strings.TrimSuffix(s, "d")
+		days, err := strconv.Atoi(daysStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Duration(days) * 24 * time.Hour, nil
+	}
+	return time.ParseDuration(s)
 }

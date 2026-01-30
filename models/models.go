@@ -12,6 +12,7 @@ type KeyHistory struct {
 	KeyMask      string
 	KeyType      string
 	CreatedAt    time.Time
+	ExpiresAt    *time.Time
 	RevokedAt    *time.Time
 	Status       string
 }

@@ -46,25 +46,43 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 
 		id := k.Key // Usually masked key
 
+		// Parse expiration
+		var expiresAt *time.Time
+		if k.Expires != "" && k.Expires != "null" {
+			if t, err := time.Parse(time.RFC3339, k.Expires); err == nil {
+				expiresAt = &t
+			}
+		}
+
+		isExpired := expiresAt != nil && expiresAt.Before(time.Now())
+
 		dbKey, exists := dbKeyMap[id]
 		if exists {
 			// Found in DB. Ensure active.
 			processedDBIDs[dbKey.ID] = struct{}{}
 
-			if dbKey.Status != "active" {
-				dbKey.Status = "active"
-				dbKey.RevokedAt = nil
-				h.DB.Save(dbKey)
+			dbKey.ExpiresAt = expiresAt
+			if isExpired {
+				if dbKey.Status != "expired" {
+					dbKey.Status = "expired"
+					h.DB.Save(dbKey)
+				}
+			} else {
+				if dbKey.Status != "active" {
+					dbKey.Status = "active"
+					dbKey.RevokedAt = nil
+					h.DB.Save(dbKey)
+				}
+				responseKeys = append(responseKeys, map[string]interface{}{
+					"mask":       dbKey.KeyMask,
+					"name":       dbKey.KeyName,
+					"created_at": dbKey.CreatedAt,
+					"expires_at": dbKey.ExpiresAt,
+					"spend":      k.Spend,
+					"type":       dbKey.KeyType,
+					"key_id":     dbKey.LiteLLMKeyID,
+				})
 			}
-
-			responseKeys = append(responseKeys, map[string]interface{}{
-				"mask":       dbKey.KeyMask,
-				"name":       dbKey.KeyName,
-				"created_at": dbKey.CreatedAt,
-				"spend":      k.Spend,
-				"type":       dbKey.KeyType,
-				"key_id":     dbKey.LiteLLMKeyID,
-			})
 		} else {
 			// Not in DB. Try to match by alias?
 			// If alias matches a dbKey, update its ID?
@@ -82,18 +100,28 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 
 				// Update ID
 				matchedByAlias.LiteLLMKeyID = id
-				matchedByAlias.Status = "active"
-				matchedByAlias.RevokedAt = nil
-				h.DB.Save(matchedByAlias)
+				matchedByAlias.ExpiresAt = expiresAt
 
-				responseKeys = append(responseKeys, map[string]interface{}{
-					"mask":       matchedByAlias.KeyMask,
-					"name":       matchedByAlias.KeyName,
-					"created_at": matchedByAlias.CreatedAt,
-					"spend":      k.Spend,
-					"type":       matchedByAlias.KeyType,
-					"key_id":     matchedByAlias.LiteLLMKeyID,
-				})
+				if isExpired {
+					if matchedByAlias.Status != "expired" {
+						matchedByAlias.Status = "expired"
+						h.DB.Save(matchedByAlias)
+					}
+				} else {
+					matchedByAlias.Status = "active"
+					matchedByAlias.RevokedAt = nil
+					h.DB.Save(matchedByAlias)
+
+					responseKeys = append(responseKeys, map[string]interface{}{
+						"mask":       matchedByAlias.KeyMask,
+						"name":       matchedByAlias.KeyName,
+						"created_at": matchedByAlias.CreatedAt,
+						"expires_at": matchedByAlias.ExpiresAt,
+						"spend":      k.Spend,
+						"type":       matchedByAlias.KeyType,
+						"key_id":     matchedByAlias.LiteLLMKeyID,
+					})
+				}
 			} else {
 				// Create new
 				newKey := models.KeyHistory{
@@ -103,18 +131,25 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 					KeyMask:      k.Key,
 					KeyType:      "standard",
 					CreatedAt:    time.Now(),
+					ExpiresAt:    expiresAt,
 					Status:       "active",
+				}
+				if isExpired {
+					newKey.Status = "expired"
 				}
 				h.DB.Create(&newKey)
 
-				responseKeys = append(responseKeys, map[string]interface{}{
-					"mask":       newKey.KeyMask,
-					"name":       newKey.KeyName,
-					"created_at": newKey.CreatedAt,
-					"spend":      k.Spend,
-					"type":       newKey.KeyType,
-					"key_id":     newKey.LiteLLMKeyID,
-				})
+				if !isExpired {
+					responseKeys = append(responseKeys, map[string]interface{}{
+						"mask":       newKey.KeyMask,
+						"name":       newKey.KeyName,
+						"created_at": newKey.CreatedAt,
+						"expires_at": newKey.ExpiresAt,
+						"spend":      k.Spend,
+						"type":       newKey.KeyType,
+						"key_id":     newKey.LiteLLMKeyID,
+					})
+				}
 			}
 		}
 	}
@@ -164,6 +199,14 @@ func (h *Handler) CreateKey(c echo.Context) error {
 	userActiveKeyCount := 0
 	for _, k := range activeKeys {
 		if k.User == userID {
+			// Check expiration
+			if k.Expires != "" && k.Expires != "null" {
+				if t, err := time.Parse(time.RFC3339, k.Expires); err == nil {
+					if t.Before(time.Now()) {
+						continue // Expired
+					}
+				}
+			}
 			userActiveKeyCount++
 		}
 	}
@@ -196,6 +239,7 @@ func (h *Handler) CreateKey(c echo.Context) error {
 		if req.Budget > 0 && req.Budget < maxBudget {
 			maxBudget = req.Budget
 		}
+		duration = config.AppConfig.StandardKeyLifetime.String()
 	}
 
 	// Call LiteLLM
