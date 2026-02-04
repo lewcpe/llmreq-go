@@ -54,8 +54,8 @@ func main() {
 	// 6. Routes
 	// Serve OpenAPI spec
 	e.GET("/openapi.json", func(c echo.Context) error {
-		doc := docs.SwaggerInfo.ReadDoc()
-		return c.JSONBlob(http.StatusOK, []byte(doc))
+		docs.SwaggerInfo.Host = c.Request().Host
+		return c.JSON(http.StatusOK, docs.SwaggerInfo)
 	})
 
 	api := e.Group(config.AppConfig.Prefix)
