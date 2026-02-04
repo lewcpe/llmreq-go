@@ -2,8 +2,10 @@ package main
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/example/llmreq/config"
+	"github.com/example/llmreq/docs"
 	"github.com/example/llmreq/handlers"
 	"github.com/example/llmreq/middleware"
 	"github.com/example/llmreq/models"
@@ -12,6 +14,13 @@ import (
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
 )
 
+// @title LLM Request Manager API
+// @version 1.0
+// @description API for managing LiteLLM keys and user budgets.
+// @host localhost:8080
+// @BasePath /api
+
+//go:generate swag init
 func main() {
 	// 1. Load Config
 	config.LoadConfig()
@@ -43,6 +52,12 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(litellmService)
 
 	// 6. Routes
+	// Serve OpenAPI spec
+	e.GET("/openapi.json", func(c echo.Context) error {
+		doc := docs.SwaggerInfo.ReadDoc()
+		return c.JSONBlob(http.StatusOK, []byte(doc))
+	})
+
 	api := e.Group(config.AppConfig.Prefix)
 	api.Use(authMiddleware.Middleware)
 
