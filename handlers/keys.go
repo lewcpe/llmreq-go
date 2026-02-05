@@ -17,6 +17,25 @@ type CreateKeyRequest struct {
 	Type   string  `json:"type"` // "standard" or "long-term"
 }
 
+type ActiveKeyResponse struct {
+	Mask      string     `json:"mask"`
+	Name      string     `json:"name"`
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt *time.Time `json:"expires_at"`
+	Spend     float64    `json:"spend"`
+	Type      string     `json:"type"`
+	KeyID     string     `json:"key_id"`
+}
+
+// GetActiveKeys godoc
+// @Summary Get active keys
+// @Description Fetch active keys from LiteLLM and sync with local DB
+// @Tags keys
+// @Accept json
+// @Produce json
+// @Success 200 {array} ActiveKeyResponse
+// @Failure 500 {object} map[string]string
+// @Router /keys/active [get]
 func (h *Handler) GetActiveKeys(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 
@@ -35,7 +54,7 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "Failed to fetch keys from LiteLLM"})
 	}
 
-	responseKeys := []map[string]interface{}{}
+	responseKeys := []ActiveKeyResponse{}
 	processedDBIDs := make(map[uint]struct{})
 
 	for _, k := range keys {
@@ -73,14 +92,14 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 					dbKey.RevokedAt = nil
 					h.DB.Save(dbKey)
 				}
-				responseKeys = append(responseKeys, map[string]interface{}{
-					"mask":       dbKey.KeyMask,
-					"name":       dbKey.KeyName,
-					"created_at": dbKey.CreatedAt,
-					"expires_at": dbKey.ExpiresAt,
-					"spend":      k.Spend,
-					"type":       dbKey.KeyType,
-					"key_id":     dbKey.LiteLLMKeyID,
+				responseKeys = append(responseKeys, ActiveKeyResponse{
+					Mask:      dbKey.KeyMask,
+					Name:      dbKey.KeyName,
+					CreatedAt: dbKey.CreatedAt,
+					ExpiresAt: dbKey.ExpiresAt,
+					Spend:     k.Spend,
+					Type:      dbKey.KeyType,
+					KeyID:     dbKey.LiteLLMKeyID,
 				})
 			}
 		} else {
@@ -112,14 +131,14 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 					matchedByAlias.RevokedAt = nil
 					h.DB.Save(matchedByAlias)
 
-					responseKeys = append(responseKeys, map[string]interface{}{
-						"mask":       matchedByAlias.KeyMask,
-						"name":       matchedByAlias.KeyName,
-						"created_at": matchedByAlias.CreatedAt,
-						"expires_at": matchedByAlias.ExpiresAt,
-						"spend":      k.Spend,
-						"type":       matchedByAlias.KeyType,
-						"key_id":     matchedByAlias.LiteLLMKeyID,
+					responseKeys = append(responseKeys, ActiveKeyResponse{
+						Mask:      matchedByAlias.KeyMask,
+						Name:      matchedByAlias.KeyName,
+						CreatedAt: matchedByAlias.CreatedAt,
+						ExpiresAt: matchedByAlias.ExpiresAt,
+						Spend:     k.Spend,
+						Type:      matchedByAlias.KeyType,
+						KeyID:     matchedByAlias.LiteLLMKeyID,
 					})
 				}
 			} else {
@@ -140,14 +159,14 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 				h.DB.Create(&newKey)
 
 				if !isExpired {
-					responseKeys = append(responseKeys, map[string]interface{}{
-						"mask":       newKey.KeyMask,
-						"name":       newKey.KeyName,
-						"created_at": newKey.CreatedAt,
-						"expires_at": newKey.ExpiresAt,
-						"spend":      k.Spend,
-						"type":       newKey.KeyType,
-						"key_id":     newKey.LiteLLMKeyID,
+					responseKeys = append(responseKeys, ActiveKeyResponse{
+						Mask:      newKey.KeyMask,
+						Name:      newKey.KeyName,
+						CreatedAt: newKey.CreatedAt,
+						ExpiresAt: newKey.ExpiresAt,
+						Spend:     k.Spend,
+						Type:      newKey.KeyType,
+						KeyID:     newKey.LiteLLMKeyID,
 					})
 				}
 			}
@@ -169,6 +188,14 @@ func (h *Handler) GetActiveKeys(c echo.Context) error {
 	return c.JSON(http.StatusOK, responseKeys)
 }
 
+// GetKeyHistory godoc
+// @Summary Get key history
+// @Description Fetch revoked or deleted keys from local DB
+// @Tags keys
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.KeyHistory
+// @Router /keys/history [get]
 func (h *Handler) GetKeyHistory(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 
@@ -178,6 +205,17 @@ func (h *Handler) GetKeyHistory(c echo.Context) error {
 	return c.JSON(http.StatusOK, history)
 }
 
+// CreateKey godoc
+// @Summary Create a new API key
+// @Description Create a new API key with optional budget and type
+// @Tags keys
+// @Accept json
+// @Produce json
+// @Param request body CreateKeyRequest true "Create Key Request"
+// @Success 200 {object} services.GenerateKeyResponse
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /keys [post]
 func (h *Handler) CreateKey(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 	var req CreateKeyRequest
@@ -294,6 +332,16 @@ func (h *Handler) CreateKey(c echo.Context) error {
 	return c.JSON(http.StatusOK, genResp)
 }
 
+// DeleteKey godoc
+// @Summary Delete an API key
+// @Description Revoke an API key
+// @Tags keys
+// @Accept json
+// @Produce json
+// @Param key_id path string true "Key ID"
+// @Success 200 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /keys/{key_id} [delete]
 func (h *Handler) DeleteKey(c echo.Context) error {
 	keyID := c.Param("key_id")
 	userID := c.Get("user_id").(string)
