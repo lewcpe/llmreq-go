@@ -53,6 +53,15 @@ func TestLiteLLMService_GetUserInfo(t *testing.T) {
 	if user != nil {
 		t.Fatal("Expected nil user, got object")
 	}
+
+	// Test Error
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	user, err = service.GetUserInfo("error")
+	if err == nil {
+		t.Fatal("Expected error for 500, got nil")
+	}
 }
 
 func TestLiteLLMService_CreateUser(t *testing.T) {
@@ -71,6 +80,16 @@ func TestLiteLLMService_CreateUser(t *testing.T) {
 	err := service.CreateUser("new@example.com", "new@example.com", 1.0)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
+	}
+
+	// Test Error
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal error"))
+	})
+	err = service.CreateUser("fail", "fail", 1.0)
+	if err == nil {
+		t.Error("Expected error, got nil")
 	}
 }
 
