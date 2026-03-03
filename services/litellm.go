@@ -84,7 +84,7 @@ func (s *LiteLLMService) GetUserInfo(userID string) (*LiteLLMUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == 404 {
 		return nil, nil // User not found
@@ -129,7 +129,7 @@ func (s *LiteLLMService) CreateUser(userID, email string, maxBudget float64) err
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -165,7 +165,7 @@ func (s *LiteLLMService) ListKeys(userID string) ([]LiteLLMKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("failed to list keys: status %d", resp.StatusCode)
@@ -208,7 +208,7 @@ func (s *LiteLLMService) GenerateKey(reqPayload GenerateKeyRequest) (*GenerateKe
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -244,7 +244,7 @@ func (s *LiteLLMService) DeleteKey(keyID string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
