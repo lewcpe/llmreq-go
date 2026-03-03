@@ -7,9 +7,9 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	os.Setenv("LLMREQ_PREFIX", "/test")
-	os.Setenv("LLMREQ_DEFAULT_BUDGET", "5.0")
-	os.Setenv("LLMREQ_MAX_ACTIVE_KEY", "20")
+	_ = os.Setenv("LLMREQ_PREFIX", "/test")
+	_ = os.Setenv("LLMREQ_DEFAULT_BUDGET", "5.0")
+	_ = os.Setenv("LLMREQ_MAX_ACTIVE_KEY", "20")
 
 	LoadConfig()
 
@@ -24,7 +24,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 
 	// Default fallback
-	os.Unsetenv("LLMREQ_LONGTERM_KEY_LIFETIME")
+	_ = os.Unsetenv("LLMREQ_LONGTERM_KEY_LIFETIME")
 	LoadConfig()
 	if AppConfig.LongTermKeyLifetime != 9600*time.Hour {
 		t.Errorf("Expected 9600h, got %v", AppConfig.LongTermKeyLifetime)
@@ -64,14 +64,14 @@ func TestParseDurationExtended(t *testing.T) {
 }
 
 func TestLoadConfig_StandardKeyLifetime(t *testing.T) {
-	os.Setenv("LLMREQ_DEFAULT_KEY_EXPIRE", "30d")
+	_ = os.Setenv("LLMREQ_DEFAULT_KEY_EXPIRE", "30d")
 	LoadConfig()
 	expected := 30 * 24 * time.Hour
 	if AppConfig.StandardKeyLifetime != expected {
 		t.Errorf("Expected %v, got %v", expected, AppConfig.StandardKeyLifetime)
 	}
 
-	os.Unsetenv("LLMREQ_DEFAULT_KEY_EXPIRE")
+	_ = os.Unsetenv("LLMREQ_DEFAULT_KEY_EXPIRE")
 	LoadConfig()
 	expectedDefault := 60 * 24 * time.Hour
 	if AppConfig.StandardKeyLifetime != expectedDefault {
