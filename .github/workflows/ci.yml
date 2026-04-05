@@ -28,7 +28,7 @@ jobs:
         sleep 10
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v3
+      uses: golangci/golangci-lint-action@v6
       with:
         version: latest
 
